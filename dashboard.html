@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NENA Brasil — Dashboard Ecommerce</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ── Top Bar ── */
+    .topbar {
+      background: #fff;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 0 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-logo {
+      font-size: 22px;
+      font-weight: 800;
+      color: #111;
+      letter-spacing: -0.5px;
+    }
+    .topbar-logo span { color: #e85d26; }
+    .topbar-badge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      background: #fff3ee;
+      color: #e85d26;
+      border: 1px solid #fbd0bc;
+      border-radius: 20px;
+      padding: 2px 10px;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .last-update {
+      font-size: 12px;
+      color: #aaa;
+    }
+    .last-update strong { color: #666; }
+    .btn-refresh {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e85d26;
+      background: #fff3ee;
+      border: 1px solid #fbd0bc;
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-refresh:hover { background: #ffe8da; }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .status-dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+    .status-dot.error { background: #ef4444; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Layout ── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    /* ── Period Tabs ── */
+    .period-tabs {
+      display: flex;
+      gap: 6px;
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 5px;
+      width: fit-content;
+      margin-bottom: 28px;
+    }
+    .period-tab {
+      font-size: 13px;
+      font-weight: 600;
+      color: #888;
+      background: transparent;
+      border: none;
+      border-radius: 7px;
+      padding: 7px 20px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .period-tab.active {
+      background: #e85d26;
+      color: #fff;
+    }
+    .period-tab:not(.active):hover { background: #f5f5f5; color: #333; }
+
+    /* ── Section ── */
+    .section { margin-bottom: 36px; }
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: #bbb;
+    }
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: #ebebeb;
+    }
+
+    /* ── KPI Grid ── */
+    .kpi-grid { display: grid; gap: 12px; }
+    .kpi-4 { grid-template-columns: repeat(4,1fr); }
+    .kpi-3 { grid-template-columns: repeat(3,1fr); }
+    .kpi-2 { grid-template-columns: repeat(2,1fr); }
+    .kpi-6 { grid-template-columns: repeat(6,1fr); }
+
+    .kpi-card {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: #e8e8e8;
+    }
+    .kpi-card.green::before  { background: #22c55e; }
+    .kpi-card.red::before    { background: #ef4444; }
+    .kpi-card.amber::before  { background: #f59e0b; }
+    .kpi-card.blue::before   { background: #3b82f6; }
+    .kpi-card.purple::before { background: #8b5cf6; }
+    .kpi-card.orange::before { background: #e85d26; }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: #bbb;
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #111;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .kpi-sub {
+      font-size: 12px;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .kpi-delta {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .kpi-delta.up   { background: #f0fdf4; color: #16a34a; }
+    .kpi-delta.down { background: #fef2f2; color: #dc2626; }
+    .kpi-delta.flat { background: #f5f5f5; color: #888; }
+
+    /* ── Canal Cards ── */
+    .canal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .canal-card {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 20px 22px;
+    }
+    .canal-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .canal-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .canal-icon.meta   { background: #eff6ff; }
+    .canal-icon.google { background: #fef9ee; }
+    .canal-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111;
+    }
+    .canal-spend {
+      font-size: 12px;
+      color: #aaa;
+    }
+    .canal-metrics {
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 12px;
+    }
+    .canal-metric-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: #ccc;
+      margin-bottom: 4px;
+    }
+    .canal-metric-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111;
+    }
+    .canal-metric-value.green { color: #16a34a; }
+    .canal-metric-value.red   { color: #dc2626; }
+
+    /* ── Charts ── */
+    .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+    .chart-card {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 20px 22px;
+    }
+    .chart-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 16px;
+    }
+    .chart-wrap { position: relative; height: 180px; }
+
+    /* ── Funil ── */
+    .funil-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .funil-row:last-child { border-bottom: none; }
+    .funil-label { font-size: 12px; color: #888; width: 100px; flex-shrink: 0; }
+    .funil-bar-wrap { flex: 1; background: #f5f5f5; border-radius: 4px; height: 8px; overflow: hidden; }
+    .funil-bar { height: 100%; border-radius: 4px; background: #e85d26; transition: width .6s ease; }
+    .funil-value { font-size: 13px; font-weight: 700; color: #111; width: 70px; text-align: right; flex-shrink: 0; }
+    .funil-pct { font-size: 11px; color: #bbb; width: 40px; text-align: right; flex-shrink: 0; }
+
+    /* ── Logística ── */
+    .log-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 12px; }
+    .log-card {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 18px 20px;
+      text-align: center;
+    }
+    .log-icon { font-size: 24px; margin-bottom: 8px; }
+    .log-value { font-size: 22px; font-weight: 700; color: #111; }
+    .log-label { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: #bbb; margin-top: 4px; }
+
+    /* ── Alert banner ── */
+    .alert-banner {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #92400e;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .alert-banner.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .alert-banner.info  { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+
+    /* ── Config panel ── */
+    .config-banner {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .config-banner label { font-size: 13px; font-weight: 600; color: #555; white-space: nowrap; }
+    .config-input {
+      flex: 1;
+      font-size: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 7px 12px;
+      color: #333;
+      min-width: 0;
+    }
+    .config-input:focus { outline: none; border-color: #e85d26; }
+    .btn-connect {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      background: #e85d26;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 18px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s;
+    }
+    .btn-connect:hover { background: #c94d1a; }
+
+    /* ── Skeleton loader ── */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    @media (max-width: 768px) {
+      .topbar { padding: 0 16px; }
+      .page { padding: 20px 16px 60px; }
+      .kpi-4, .kpi-6 { grid-template-columns: repeat(2,1fr); }
+      .kpi-3 { grid-template-columns: repeat(2,1fr); }
+      .canal-grid, .charts-grid { grid-template-columns: 1fr; }
+      .log-grid { grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Top Bar ── -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">NENA<span>.</span></div>
+    <div class="topbar-badge">Ecommerce</div>
+  </div>
+  <div class="topbar-right">
+    <div class="last-update">
+      <span class="status-dot" id="statusDot"></span>
+      Atualizado: <strong id="lastUpdateTime">—</strong>
+    </div>
+    <button class="btn-refresh" onclick="loadData()">↺ Atualizar</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ── Config Banner ── -->
+  <div class="config-banner" id="configBanner">
+    <label>🔗 Apps Script URL:</label>
+    <input type="text" class="config-input" id="appsScriptUrl"
+      placeholder="Cole aqui a URL do seu Google Apps Script Web App..."
+      value="" />
+    <button class="btn-connect" onclick="connectAndLoad()">Conectar</button>
+  </div>
+
+  <!-- ── Period Tabs ── -->
+  <div class="period-tabs">
+    <button class="period-tab active" onclick="setPeriod('hoje', this)">Hoje</button>
+    <button class="period-tab" onclick="setPeriod('semana', this)">Esta Semana</button>
+    <button class="period-tab" onclick="setPeriod('mes', this)">Este Mês</button>
+  </div>
+
+  <!-- ── VENDAS & FATURAMENTO ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">💰 Vendas & Faturamento</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="kpi-grid kpi-4" style="margin-bottom:12px">
+      <div class="kpi-card orange">
+        <div class="kpi-label">Faturamento Bruto</div>
+        <div class="kpi-value" id="kpi-fat-bruto">—</div>
+        <div class="kpi-sub"><span class="kpi-delta" id="d-fat-bruto">—</span> vs período anterior</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Faturamento Líquido</div>
+        <div class="kpi-value" id="kpi-fat-liq">—</div>
+        <div class="kpi-sub"><span class="kpi-delta" id="d-fat-liq">—</span> vs período anterior</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Pedidos</div>
+        <div class="kpi-value" id="kpi-pedidos">—</div>
+        <div class="kpi-sub"><span class="kpi-delta" id="d-pedidos">—</span> vs período anterior</div>
+      </div>
+      <div class="kpi-card purple">
+        <div class="kpi-label">Ticket Médio</div>
+        <div class="kpi-value" id="kpi-ticket">—</div>
+        <div class="kpi-sub"><span class="kpi-delta" id="d-ticket">—</span> vs período anterior</div>
+      </div>
+    </div>
+    <div class="kpi-grid kpi-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Taxa de Conversão</div>
+        <div class="kpi-value" id="kpi-conv">—</div>
+        <div class="kpi-sub">visitantes → compra</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Devoluções</div>
+        <div class="kpi-value" id="kpi-devolucoes">—</div>
+        <div class="kpi-sub" id="sub-devolucoes">pedidos devolvidos</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Visitantes</div>
+        <div class="kpi-value" id="kpi-visitantes">—</div>
+        <div class="kpi-sub"><span class="kpi-delta" id="d-visitantes">—</span> vs período anterior</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Receita / Visita</div>
+        <div class="kpi-value" id="kpi-rpv">—</div>
+        <div class="kpi-sub">Revenue per visitor</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">📈 Tendências</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Faturamento por dia</div>
+        <div class="chart-wrap"><canvas id="chartFaturamento"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Funil de Vendas</div>
+        <div id="funil-wrap">
+          <div class="funil-row">
+            <span class="funil-label">Sessões</span>
+            <div class="funil-bar-wrap"><div class="funil-bar" id="bar-sessoes" style="width:100%"></div></div>
+            <span class="funil-value" id="fval-sessoes">—</span>
+            <span class="funil-pct">100%</span>
+          </div>
+          <div class="funil-row">
+            <span class="funil-label">PDPs vistas</span>
+            <div class="funil-bar-wrap"><div class="funil-bar" id="bar-pdp" style="width:65%"></div></div>
+            <span class="funil-value" id="fval-pdp">—</span>
+            <span class="funil-pct" id="fpct-pdp">—</span>
+          </div>
+          <div class="funil-row">
+            <span class="funil-label">Carrinho</span>
+            <div class="funil-bar-wrap"><div class="funil-bar" id="bar-cart" style="width:30%"></div></div>
+            <span class="funil-value" id="fval-cart">—</span>
+            <span class="funil-pct" id="fpct-cart">—</span>
+          </div>
+          <div class="funil-row">
+            <span class="funil-label">Checkout</span>
+            <div class="funil-bar-wrap"><div class="funil-bar" id="bar-checkout" style="width:18%"></div></div>
+            <span class="funil-value" id="fval-checkout">—</span>
+            <span class="funil-pct" id="fpct-checkout">—</span>
+          </div>
+          <div class="funil-row">
+            <span class="funil-label">Pedidos</span>
+            <div class="funil-bar-wrap"><div class="funil-bar" id="bar-orders" style="width:10%"></div></div>
+            <span class="funil-value" id="fval-orders">—</span>
+            <span class="funil-pct" id="fpct-orders">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MARKETING & ADS ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">📣 Marketing & Ads</div>
+      <div class="section-line"></div>
+    </div>
+
+    <!-- Global ads KPIs -->
+    <div class="kpi-grid kpi-4" style="margin-bottom:12px">
+      <div class="kpi-card orange">
+        <div class="kpi-label">Verba Total</div>
+        <div class="kpi-value" id="kpi-verba">—</div>
+        <div class="kpi-sub">Meta + Google</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">ROAS Global</div>
+        <div class="kpi-value" id="kpi-roas">—</div>
+        <div class="kpi-sub">retorno sobre o investimento</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">CPA Global</div>
+        <div class="kpi-value" id="kpi-cpa">—</div>
+        <div class="kpi-sub">custo por pedido</div>
+      </div>
+      <div class="kpi-card purple">
+        <div class="kpi-label">CPM Médio</div>
+        <div class="kpi-value" id="kpi-cpm">—</div>
+        <div class="kpi-sub">custo por mil impressões</div>
+      </div>
+    </div>
+
+    <!-- Por canal -->
+    <div class="canal-grid">
+      <!-- Meta Ads -->
+      <div class="canal-card">
+        <div class="canal-header">
+          <div class="canal-icon meta">📘</div>
+          <div>
+            <div class="canal-name">Meta Ads</div>
+            <div class="canal-spend" id="meta-spend">Verba: —</div>
+          </div>
+        </div>
+        <div class="canal-metrics">
+          <div>
+            <div class="canal-metric-label">ROAS</div>
+            <div class="canal-metric-value green" id="meta-roas">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">CPA</div>
+            <div class="canal-metric-value" id="meta-cpa">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">CTR</div>
+            <div class="canal-metric-value" id="meta-ctr">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">Impressões</div>
+            <div class="canal-metric-value" id="meta-impressoes">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">Cliques</div>
+            <div class="canal-metric-value" id="meta-cliques">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">Conversões</div>
+            <div class="canal-metric-value" id="meta-conv">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google Ads -->
+      <div class="canal-card">
+        <div class="canal-header">
+          <div class="canal-icon google">🔍</div>
+          <div>
+            <div class="canal-name">Google Ads</div>
+            <div class="canal-spend" id="google-spend">Verba: —</div>
+          </div>
+        </div>
+        <div class="canal-metrics">
+          <div>
+            <div class="canal-metric-label">ROAS</div>
+            <div class="canal-metric-value green" id="google-roas">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">CPA</div>
+            <div class="canal-metric-value" id="google-cpa">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">CTR</div>
+            <div class="canal-metric-value" id="google-ctr">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">Impressões</div>
+            <div class="canal-metric-value" id="google-impressoes">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">Cliques</div>
+            <div class="canal-metric-value" id="google-cliques">—</div>
+          </div>
+          <div>
+            <div class="canal-metric-label">Conversões</div>
+            <div class="canal-metric-value" id="google-conv">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── OPERACIONAL & LOGÍSTICA ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">📦 Operacional & Logística</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="log-grid" style="margin-bottom:12px">
+      <div class="log-card">
+        <div class="log-icon">🆕</div>
+        <div class="log-value" id="log-novos">—</div>
+        <div class="log-label">Novos Pedidos</div>
+      </div>
+      <div class="log-card">
+        <div class="log-icon">🚚</div>
+        <div class="log-value" id="log-transito">—</div>
+        <div class="log-label">Em Trânsito</div>
+      </div>
+      <div class="log-card">
+        <div class="log-icon">✅</div>
+        <div class="log-value" id="log-entregues">—</div>
+        <div class="log-label">Entregues</div>
+      </div>
+      <div class="log-card">
+        <div class="log-icon">↩️</div>
+        <div class="log-value" id="log-devolvidos">—</div>
+        <div class="log-label">Devolvidos</div>
+      </div>
+    </div>
+    <div class="kpi-grid kpi-3">
+      <div class="kpi-card">
+        <div class="kpi-label">Prazo Médio de Entrega</div>
+        <div class="kpi-value" id="log-prazo">—</div>
+        <div class="kpi-sub">dias úteis</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Taxa de Entrega no Prazo</div>
+        <div class="kpi-value" id="log-taxa-prazo">—</div>
+        <div class="kpi-sub">dos pedidos no prazo</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Estoque Crítico</div>
+        <div class="kpi-value" id="log-estoque">—</div>
+        <div class="kpi-sub">SKUs abaixo do mínimo</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIGURAÇÃO
+// ─────────────────────────────────────────────
+let APPS_SCRIPT_URL = localStorage.getItem('nena_apps_script_url') || '';
+let currentPeriod = 'hoje';
+let chartFaturamento = null;
+
+// Ao carregar, preenche o campo e tenta conectar
+window.addEventListener('DOMContentLoaded', () => {
+  if (APPS_SCRIPT_URL) {
+    document.getElementById('appsScriptUrl').value = APPS_SCRIPT_URL;
+    loadData();
+  } else {
+    renderMockData(currentPeriod);
+  }
+});
+
+function connectAndLoad() {
+  const url = document.getElementById('appsScriptUrl').value.trim();
+  if (!url) return alert('Cole a URL do Apps Script.');
+  APPS_SCRIPT_URL = url;
+  localStorage.setItem('nena_apps_script_url', url);
+  loadData();
+}
+
+function setPeriod(period, btn) {
+  currentPeriod = period;
+  document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadData();
+}
+
+// ─────────────────────────────────────────────
+// FETCH DO APPS SCRIPT
+// ─────────────────────────────────────────────
+function loadData() {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot loading';
+
+  if (!APPS_SCRIPT_URL) {
+    renderMockData(currentPeriod);
+    dot.className = 'status-dot';
+    document.getElementById('lastUpdateTime').textContent = 'modo demo';
+    return;
+  }
+
+  const url = `${APPS_SCRIPT_URL}?period=${currentPeriod}&t=${Date.now()}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      renderData(data);
+      dot.className = 'status-dot';
+      document.getElementById('lastUpdateTime').textContent = formatTime(new Date());
+    })
+    .catch(err => {
+      console.error('Erro ao buscar dados:', err);
+      dot.className = 'status-dot error';
+      document.getElementById('lastUpdateTime').textContent = 'erro na conexão';
+      renderMockData(currentPeriod); // fallback para demo
+    });
+}
+
+// ─────────────────────────────────────────────
+// MOCK DATA (demo / fallback)
+// ─────────────────────────────────────────────
+const MOCK = {
+  hoje: {
+    vendas: {
+      fat_bruto: 18450, fat_liq: 15200, pedidos: 47, ticket: 392.55,
+      conv: 2.8, devolucoes: 2, visitantes: 1678, rpv: 10.99,
+      delta_fat: '+12%', delta_liq: '+9%', delta_pedidos: '+5%', delta_ticket: '+6%',
+      delta_vis: '+18%'
+    },
+    funil: { sessoes: 1678, pdp: 980, cart: 312, checkout: 195, orders: 47 },
+    fat_chart: {
+      labels: ['09h','10h','11h','12h','13h','14h','15h','16h','17h','18h'],
+      values: [320, 580, 940, 1420, 1150, 1890, 2100, 2450, 1980, 2620]
+    },
+    ads: {
+      verba: 3200, roas: 5.76, cpa: 68.09, cpm: 28.40,
+      meta: { spend: 2100, roas: 6.2, cpa: 61, ctr: '2.1%', impressoes: '74.2k', cliques: '1.556', conv: 34 },
+      google: { spend: 1100, roas: 4.9, cpa: 84, ctr: '4.7%', impressoes: '23.4k', cliques: '1.100', conv: 13 }
+    },
+    log: {
+      novos: 47, transito: 218, entregues: 31, devolvidos: 2,
+      prazo: '4.2', taxa_prazo: '91%', estoque: 3
+    }
+  },
+  semana: {
+    vendas: {
+      fat_bruto: 98750, fat_liq: 81400, pedidos: 264, ticket: 374.05,
+      conv: 2.6, devolucoes: 11, visitantes: 10153, rpv: 9.72,
+      delta_fat: '+8%', delta_liq: '+6%', delta_pedidos: '+3%', delta_ticket: '+4%',
+      delta_vis: '+14%'
+    },
+    funil: { sessoes: 10153, pdp: 5890, cart: 1820, checkout: 1140, orders: 264 },
+    fat_chart: {
+      labels: ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'],
+      values: [12400, 15800, 13200, 16900, 18700, 14300, 7450]
+    },
+    ads: {
+      verba: 17500, roas: 5.64, cpa: 66.29, cpm: 26.80,
+      meta: { spend: 11500, roas: 6.0, cpa: 59, ctr: '2.3%', impressoes: '429k', cliques: '9.8k', conv: 195 },
+      google: { spend: 6000, roas: 4.7, cpa: 86, ctr: '4.9%', impressoes: '122k', cliques: '5.9k', conv: 70 }
+    },
+    log: {
+      novos: 264, transito: 312, entregues: 198, devolvidos: 11,
+      prazo: '4.1', taxa_prazo: '93%', estoque: 3
+    }
+  },
+  mes: {
+    vendas: {
+      fat_bruto: 412300, fat_liq: 339800, pedidos: 1087, ticket: 379.30,
+      conv: 2.5, devolucoes: 43, visitantes: 43480, rpv: 9.48,
+      delta_fat: '+22%', delta_liq: '+19%', delta_pedidos: '+17%', delta_ticket: '+4%',
+      delta_vis: '+31%'
+    },
+    funil: { sessoes: 43480, pdp: 25200, cart: 7900, checkout: 4900, orders: 1087 },
+    fat_chart: {
+      labels: ['S1','S2','S3','S4'],
+      values: [89400, 104200, 118700, 100000]
+    },
+    ads: {
+      verba: 71400, roas: 5.77, cpa: 65.68, cpm: 25.90,
+      meta: { spend: 47000, roas: 6.1, cpa: 58, ctr: '2.4%', impressoes: '1.81M', cliques: '43.4k', conv: 810 },
+      google: { spend: 24400, roas: 4.8, cpa: 89, ctr: '5.1%', impressoes: '478k', cliques: '24.3k', conv: 274 }
+    },
+    log: {
+      novos: 1087, transito: 98, entregues: 946, devolvidos: 43,
+      prazo: '4.0', taxa_prazo: '94%', estoque: 3
+    }
+  }
+};
+
+function renderMockData(period) {
+  renderData(MOCK[period]);
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function renderData(d) {
+  const v = d.vendas;
+
+  // Faturamento
+  set('kpi-fat-bruto', brl(v.fat_bruto));
+  set('kpi-fat-liq',   brl(v.fat_liq));
+  set('kpi-pedidos',   v.pedidos);
+  set('kpi-ticket',    brl(v.ticket));
+  set('kpi-conv',      v.conv + '%');
+  set('kpi-devolucoes', v.devolucoes);
+  set('kpi-visitantes', fmt(v.visitantes));
+  set('kpi-rpv',       brl(v.rpv));
+  setDelta('d-fat-bruto',  v.delta_fat);
+  setDelta('d-fat-liq',    v.delta_liq);
+  setDelta('d-pedidos',    v.delta_pedidos);
+  setDelta('d-ticket',     v.delta_ticket);
+  setDelta('d-visitantes', v.delta_vis);
+
+  // Funil
+  const f = d.funil;
+  set('fval-sessoes',  fmt(f.sessoes));
+  set('fval-pdp',      fmt(f.pdp));
+  set('fval-cart',     fmt(f.cart));
+  set('fval-checkout', fmt(f.checkout));
+  set('fval-orders',   fmt(f.orders));
+  pct('fpct-pdp',      f.pdp, f.sessoes);
+  pct('fpct-cart',     f.cart, f.sessoes);
+  pct('fpct-checkout', f.checkout, f.sessoes);
+  pct('fpct-orders',   f.orders, f.sessoes);
+  bar('bar-pdp',       f.pdp, f.sessoes);
+  bar('bar-cart',      f.cart, f.sessoes);
+  bar('bar-checkout',  f.checkout, f.sessoes);
+  bar('bar-orders',    f.orders, f.sessoes);
+
+  // Chart
+  renderChartFaturamento(d.fat_chart);
+
+  // Ads
+  const a = d.ads;
+  set('kpi-verba', brl(a.verba));
+  set('kpi-roas',  a.roas + 'x');
+  set('kpi-cpa',   brl(a.cpa));
+  set('kpi-cpm',   brl(a.cpm));
+
+  // Meta
+  set('meta-spend',     'Verba: ' + brl(a.meta.spend));
+  set('meta-roas',      a.meta.roas + 'x');
+  set('meta-cpa',       brl(a.meta.cpa));
+  set('meta-ctr',       a.meta.ctr);
+  set('meta-impressoes', a.meta.impressoes);
+  set('meta-cliques',   a.meta.cliques);
+  set('meta-conv',      a.meta.conv);
+
+  // Google
+  set('google-spend',     'Verba: ' + brl(a.google.spend));
+  set('google-roas',      a.google.roas + 'x');
+  set('google-cpa',       brl(a.google.cpa));
+  set('google-ctr',       a.google.ctr);
+  set('google-impressoes', a.google.impressoes);
+  set('google-cliques',   a.google.cliques);
+  set('google-conv',      a.google.conv);
+
+  // Log
+  const l = d.log;
+  set('log-novos',     l.novos);
+  set('log-transito',  l.transito);
+  set('log-entregues', l.entregues);
+  set('log-devolvidos', l.devolvidos);
+  set('log-prazo',     l.prazo + ' dias');
+  set('log-taxa-prazo', l.taxa_prazo);
+  set('log-estoque',   l.estoque + ' SKUs');
+}
+
+function renderChartFaturamento(data) {
+  const ctx = document.getElementById('chartFaturamento').getContext('2d');
+  if (chartFaturamento) chartFaturamento.destroy();
+  chartFaturamento = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [{
+        label: 'Faturamento',
+        data: data.values,
+        borderColor: '#e85d26',
+        backgroundColor: 'rgba(232,93,38,0.08)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#e85d26',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#aaa' } },
+        y: {
+          grid: { color: '#f0f0f0' },
+          ticks: {
+            font: { size: 11 }, color: '#aaa',
+            callback: v => 'R$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v)
+          }
+        }
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// UTILITÁRIOS
+// ─────────────────────────────────────────────
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function setDelta(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = val;
+  const n = parseFloat(val);
+  el.className = 'kpi-delta ' + (n > 0 ? 'up' : n < 0 ? 'down' : 'flat');
+}
+
+function pct(id, num, denom) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = ((num/denom)*100).toFixed(1) + '%';
+}
+
+function bar(id, num, denom) {
+  const el = document.getElementById(id);
+  if (el) el.style.width = ((num/denom)*100).toFixed(1) + '%';
+}
+
+function brl(v) {
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmt(v) {
+  return Number(v).toLocaleString('pt-BR');
+}
+
+function formatTime(d) {
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Inicializa com dados demo
+renderMockData('hoje');
+document.getElementById('lastUpdateTime').textContent = 'modo demo';
+</script>
+</body>
+</html>
